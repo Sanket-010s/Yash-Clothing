@@ -1,0 +1,14 @@
+node_modules/
+.next/
+dist/
+build/
+venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+.env
+.env.local
+backend/.env
+store/.env.local
+backend/tshirt.db
+*.log

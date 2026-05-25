@@ -1,0 +1,169 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #1a1a1a;
+  --color-accent: #f5a623;
+  --color-accent-hover: #ffb94d;
+  --color-success: #27ae60;
+  --color-warning: #f5a623;
+  --color-danger: #c0392b;
+  --color-background: #ffffff;
+  --color-surface: #f5f5f5;
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #666666;
+  --color-border: #e0e0e0;
+  --color-muted: #999999;
+  --color-sold: #cccccc;
+  --color-skeleton: #f0f0f0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.page-shell {
+  @apply mx-auto w-full max-w-container px-4 sm:px-5 md:px-6 lg:px-8;
+}
+
+.section-surface {
+  @apply rounded-xl bg-surface;
+}
+
+.card {
+  @apply rounded-xl border border-border bg-background p-3 shadow-card;
+}
+
+.input {
+  @apply h-12 w-full rounded-lg border border-border bg-background px-3 text-[15px] text-text-primary outline-none transition placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/25;
+}
+
+.label {
+  @apply mb-1 block text-[13px] font-medium text-text-primary;
+}
+
+.error-text {
+  @apply mt-1 text-[13px] text-danger;
+}
+
+.btn {
+  @apply inline-flex min-h-12 items-center justify-center rounded-lg px-4 text-[15px] font-semibold transition focus:outline-none focus:ring-2 focus:ring-accent/30 disabled:cursor-not-allowed disabled:border-border disabled:bg-border disabled:text-muted;
+}
+
+.btn-primary {
+  @apply btn border border-transparent bg-accent text-primary hover:bg-accentHover;
+}
+
+.btn-secondary {
+  @apply btn border border-primary bg-background text-primary hover:bg-primary/5;
+}
+
+.btn-ghost {
+  @apply btn border border-transparent bg-transparent text-primary hover:bg-primary/5;
+}
+
+.btn-danger {
+  @apply btn border border-danger bg-danger text-white hover:bg-danger/90;
+}
+
+.spinner {
+  @apply h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent;
+}
+
+.text-page-title {
+  @apply text-[1.75rem] font-bold leading-tight;
+}
+
+.text-section-heading {
+  @apply text-[1.375rem] font-semibold leading-tight;
+}
+
+.text-product-name {
+  @apply text-[1.125rem] font-medium;
+}
+
+.text-price {
+  @apply text-[1.25rem] font-bold text-accent;
+}
+
+.text-body {
+  @apply text-[15px] font-normal;
+}
+
+.text-caption {
+  @apply text-[13px] font-normal;
+}
+
+.text-nav {
+  @apply text-[11px] font-medium;
+}
+
+.line-clamp-2-custom {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.skeleton {
+  @apply relative overflow-hidden rounded-md;
+  background: var(--color-skeleton);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  animation: shimmer 1.4s infinite;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+}
+
+.toast-enter {
+  animation: toast-slide-down 0.24s ease-out;
+}
+
+.badge-bounce {
+  animation: badge-bounce 0.24s ease;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes badge-bounce {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes toast-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
