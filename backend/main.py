@@ -1,20 +1,31 @@
-import os
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from database.db import Base, SessionLocal, engine
-from routes import auth, invoices, orders, payment, products
+from config import get_settings
+from database.db import AsyncSessionLocal, init_db
+from routes import addresses, admin, auth, cart, coupons, designs, invoices, orders, payment, products, wishlist
 from services.seed import seed_products_if_empty
 
-app = FastAPI(title="Custom T-Shirt Platform API", version="0.1.0")
+settings = get_settings()
 
-origins_raw = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
-allowed_origins = [origin.strip() for origin in origins_raw.split(",") if origin.strip()]
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    await init_db()
+    async with AsyncSessionLocal() as db:
+        await seed_products_if_empty(db)
+    yield
+
+
+app = FastAPI(title="Custom T-Shirt Platform API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=[settings.FRONTEND_URL, settings.ADMIN_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -22,21 +33,19 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(products.router)
+app.include_router(products.admin_router)
+app.include_router(cart.router)
 app.include_router(orders.router)
+app.include_router(admin.router)
 app.include_router(payment.router)
 app.include_router(invoices.router)
-
-
-@app.on_event("startup")
-def on_startup():
-    Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
-    try:
-        seed_products_if_empty(db)
-    finally:
-        db.close()
+app.include_router(invoices.admin_router)
+app.include_router(addresses.router)
+app.include_router(wishlist.router)
+app.include_router(designs.router)
+app.include_router(coupons.router)
 
 
 @app.get("/health")
-def health():
+async def health():
     return {"status": "ok"}

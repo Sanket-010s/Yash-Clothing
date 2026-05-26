@@ -1,44 +1,162 @@
+from __future__ import annotations
+
+from decimal import Decimal
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import asc, desc
-from sqlalchemy.orm import Session
+from sqlalchemy import Select, asc, desc, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from database.db import get_db
-from models.product import Product
-from schemas.product import ProductOut
+from middleware.admin import get_current_admin
+from models.product import Product, Variant
+from schemas.product import ProductCreate, ProductOut, ProductUpdate, VariantCreate, VariantOut, VariantUpdate
 
 router = APIRouter(prefix="/api/products", tags=["Products"])
+admin_router = APIRouter(prefix="/api/admin", tags=["Admin Products"])
 
 
 @router.get("", response_model=list[ProductOut])
-def list_products(
-    search: str | None = Query(default=None),
-    category: str | None = Query(default=None),
+async def list_products(
+    category: str | None = None,
+    size: str | None = None,
+    color: str | None = None,
+    min_price: Decimal | None = Query(default=None, ge=0),
+    max_price: Decimal | None = Query(default=None, ge=0),
     sort: str = Query(default="newest"),
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=12, ge=1, le=50),
-    db: Session = Depends(get_db),
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=12, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
 ):
-    query = db.query(Product).filter(Product.is_active.is_(True))
+    query: Select[tuple[Product]] = select(Product).options(selectinload(Product.variants)).where(Product.is_active.is_(True))
 
-    if search:
-        query = query.filter(Product.name.ilike(f"%{search.strip()}%"))
     if category:
-        query = query.filter(Product.category.ilike(category.strip()))
+        query = query.where(Product.category.ilike(category.strip()))
+    if size or color:
+        query = query.join(Variant)
+        if size:
+            query = query.where(Variant.size.ilike(size.strip()))
+        if color:
+            query = query.where(or_(Variant.color.ilike(color.strip()), Variant.color_hex.ilike(color.strip())))
+    if min_price is not None:
+        query = query.where(func.coalesce(Product.sale_price, Product.base_price) >= min_price)
+    if max_price is not None:
+        query = query.where(func.coalesce(Product.sale_price, Product.base_price) <= max_price)
 
-    sort_key = sort.lower()
-    if sort_key == "price_asc":
-        query = query.order_by(asc(Product.price))
-    elif sort_key == "price_desc":
-        query = query.order_by(desc(Product.price))
+    effective_price = func.coalesce(Product.sale_price, Product.base_price)
+    sort_value = sort.lower()
+    if sort_value == "price_asc":
+        query = query.order_by(asc(effective_price))
+    elif sort_value == "price_desc":
+        query = query.order_by(desc(effective_price))
     else:
         query = query.order_by(desc(Product.created_at))
 
-    return query.offset(skip).limit(limit).all()
+    query = query.distinct().offset((page - 1) * limit).limit(limit)
+    result = await db.execute(query)
+    return result.scalars().all()
 
 
 @router.get("/{product_id}", response_model=ProductOut)
-def get_product(product_id: int, db: Session = Depends(get_db)):
-    product = db.query(Product).filter(Product.id == product_id, Product.is_active.is_(True)).first()
+async def get_product(product_id: UUID, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Product).options(selectinload(Product.variants)).where(Product.id == product_id, Product.is_active.is_(True))
+    )
+    product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
     return product
+
+
+@admin_router.post("/products", response_model=ProductOut, status_code=status.HTTP_201_CREATED)
+async def create_product(
+    payload: ProductCreate,
+    _: object = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    product = Product(**payload.model_dump())
+    db.add(product)
+    await db.commit()
+    await db.refresh(product)
+    return product
+
+
+@admin_router.put("/products/{product_id}", response_model=ProductOut)
+async def update_product(
+    product_id: UUID,
+    payload: ProductUpdate,
+    _: object = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(product, field, value)
+
+    await db.commit()
+    await db.refresh(product)
+    return product
+
+
+@admin_router.delete("/products/{product_id}")
+async def delete_product(
+    product_id: UUID,
+    _: object = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+    await db.delete(product)
+    await db.commit()
+    return {"message": "Product deleted"}
+
+
+@admin_router.post("/products/{product_id}/variants", response_model=VariantOut, status_code=status.HTTP_201_CREATED)
+async def add_variant(
+    product_id: UUID,
+    payload: VariantCreate,
+    _: object = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    product_result = await db.execute(select(Product).where(Product.id == product_id))
+    if not product_result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+    existing_result = await db.execute(
+        select(Variant).where(Variant.product_id == product_id, Variant.size == payload.size, Variant.color == payload.color)
+    )
+    if existing_result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Variant already exists")
+
+    variant = Variant(product_id=product_id, **payload.model_dump())
+    db.add(variant)
+    await db.commit()
+    await db.refresh(variant)
+    return variant
+
+
+@admin_router.put("/variants/{variant_id}", response_model=VariantOut)
+async def update_variant(
+    variant_id: UUID,
+    payload: VariantUpdate,
+    _: object = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Variant).where(Variant.id == variant_id))
+    variant = result.scalar_one_or_none()
+    if not variant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variant not found")
+
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(variant, field, value)
+
+    await db.commit()
+    await db.refresh(variant)
+    return variant

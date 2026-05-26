@@ -1,39 +1,65 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from __future__ import annotations
+
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from database.db import get_db
+from middleware.admin import get_current_admin
+from middleware.auth import get_current_user
 from models.invoice import Invoice
 from models.order import Order
 from models.user import User
-from services.dependencies import get_current_user
+from schemas.invoice import InvoiceOut
 
 router = APIRouter(prefix="/api/invoices", tags=["Invoices"])
+admin_router = APIRouter(prefix="/api/admin", tags=["Admin Invoices"])
 
 
-@router.get("/{order_id}")
-def get_invoice(
-    order_id: int,
+@router.get("/{order_id}", response_model=InvoiceOut)
+async def get_my_invoice(
+    order_id: UUID,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    order = db.query(Order).filter(Order.id == order_id).first()
+    order_result = await db.execute(select(Order).where(Order.id == order_id))
+    order = order_result.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
-
     if order.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed")
 
-    invoice = db.query(Invoice).filter(Invoice.order_id == order_id).first()
+    invoice_result = await db.execute(select(Invoice).where(Invoice.order_id == order_id))
+    invoice = invoice_result.scalar_one_or_none()
     if not invoice:
-        return {
-            "order_id": order_id,
-            "invoice_status": "pending",
-            "message": "Invoice generation will be added in next phase.",
-        }
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not generated yet")
+    return invoice
 
-    return {
-        "order_id": order_id,
-        "invoice_number": invoice.invoice_number,
-        "pdf_url": invoice.pdf_url,
-        "generated_at": invoice.generated_at,
-    }
+
+@admin_router.get("/invoices", response_model=list[InvoiceOut])
+async def list_invoices(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
+    _: object = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Invoice).order_by(Invoice.generated_at.desc()).offset((page - 1) * limit).limit(limit)
+    )
+    return result.scalars().all()
+
+
+@admin_router.get("/invoices/{order_id}", response_model=InvoiceOut)
+async def get_invoice_by_order(
+    order_id: UUID,
+    _: object = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Invoice).where(Invoice.order_id == order_id))
+    invoice = result.scalar_one_or_none()
+    if not invoice:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+    return invoice

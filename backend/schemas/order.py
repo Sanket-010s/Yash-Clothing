@@ -1,52 +1,70 @@
+from __future__ import annotations
+
 from datetime import datetime
+from decimal import Decimal
+from uuid import UUID
 
-from pydantic import BaseModel, Field
-
-
-class OrderItemInput(BaseModel):
-    product_id: int
-    quantity: int = Field(ge=1, le=20)
-    size: str = Field(default="M", min_length=1, max_length=20)
-    color: str = Field(default="Black", min_length=1, max_length=30)
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class AddressInput(BaseModel):
-    full_name: str = Field(min_length=2, max_length=120)
-    phone: str = Field(min_length=8, max_length=20)
-    line1: str = Field(min_length=5, max_length=200)
-    city: str = Field(min_length=2, max_length=80)
-    state: str = Field(min_length=2, max_length=80)
-    pincode: str = Field(min_length=4, max_length=12)
+    label: str = Field(default="Home", max_length=20)
+    full_name: str = Field(min_length=2, max_length=100)
+    phone: str = Field(min_length=8, max_length=15)
+    line1: str = Field(min_length=5, max_length=255)
+    line2: str | None = Field(default=None, max_length=255)
+    city: str = Field(min_length=2, max_length=100)
+    state: str = Field(min_length=2, max_length=100)
+    pincode: str = Field(min_length=4, max_length=10)
+
+
+class OrderItemInput(BaseModel):
+    variant_id: UUID
+    quantity: int = Field(ge=1, le=20)
+    design_id: UUID | None = None
 
 
 class CreateOrderRequest(BaseModel):
-    items: list[OrderItemInput]
-    address: AddressInput
-    coupon_code: str | None = None
+    items: list[OrderItemInput] | None = None
+    address_id: UUID | None = None
+    address: AddressInput | None = None
+    coupon_code: str | None = Field(default=None, max_length=50)
+    guest_email: EmailStr | None = None
+    guest_phone: str | None = Field(default=None, max_length=15)
 
 
 class OrderItemOut(BaseModel):
-    product_id: int
+    id: UUID
+    product_id: UUID | None
+    variant_id: UUID
+    design_id: UUID | None
     quantity: int
-    unit_price: float
+    unit_price: Decimal
+    product_name: str
     size: str
     color: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrderOut(BaseModel):
-    id: int
+    id: UUID
+    user_id: UUID | None
+    guest_email: str | None
+    guest_phone: str | None
+    address_id: UUID | None
     status: str
-    payment_status: str
-    subtotal: float
-    gst_amount: float
-    delivery_amount: float
-    discount_amount: float
-    total_amount: float
+    subtotal: Decimal
+    gst_amount: Decimal
+    discount_amount: Decimal
+    delivery_charge: Decimal
+    total_amount: Decimal
+    coupon_code: str | None
     created_at: datetime
     items: list[OrderItemOut]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrderStatusUpdateRequest(BaseModel):
+    status: str = Field(pattern="^(pending|confirmed|shipped|delivered|cancelled)$")

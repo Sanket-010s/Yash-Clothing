@@ -1,13 +1,14 @@
-import os
+from __future__ import annotations
+
 from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-SECRET_KEY = os.getenv("SECRET_KEY", "change_me_for_production")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
+from config import get_settings
+
+settings = get_settings()
+pwd_context = CryptContext(schemes=["bcrypt"], bcrypt__rounds=12, deprecated="auto")
 
 
 def hash_password(password: str) -> str:
@@ -18,15 +19,19 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def create_access_token(subject: str) -> str:
-    expires_delta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+def create_access_token(subject: str, role: str = "user") -> str:
     now = datetime.now(timezone.utc)
-    payload = {"sub": subject, "exp": now + expires_delta, "iat": now}
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    expires_at = (
+        now + timedelta(hours=settings.ADMIN_TOKEN_EXPIRE_HOURS)
+        if role == "admin"
+        else now + timedelta(days=settings.ACCESS_TOKEN_EXPIRE_DAYS)
+    )
+    payload = {"sub": subject, "role": role, "iat": now, "exp": expires_at}
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
 def decode_token(token: str) -> dict | None:
     try:
-        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     except JWTError:
         return None
