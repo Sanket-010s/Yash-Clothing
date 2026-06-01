@@ -69,6 +69,31 @@ async def get_product(product_id: UUID, db: AsyncSession = Depends(get_db)):
     return product
 
 
+@admin_router.get("/products", response_model=list[ProductOut])
+async def admin_list_products(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=50, ge=1, le=100),
+    _: object = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    query = select(Product).options(selectinload(Product.variants)).order_by(desc(Product.created_at)).offset((page - 1) * limit).limit(limit)
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+@admin_router.get("/products/{product_id}", response_model=ProductOut)
+async def admin_get_product(
+    product_id: UUID,
+    _: object = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Product).options(selectinload(Product.variants)).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    return product
+
+
 @admin_router.post("/products", response_model=ProductOut, status_code=status.HTTP_201_CREATED)
 async def create_product(
     payload: ProductCreate,
@@ -78,8 +103,8 @@ async def create_product(
     product = Product(**payload.model_dump())
     db.add(product)
     await db.commit()
-    await db.refresh(product)
-    return product
+    result = await db.execute(select(Product).options(selectinload(Product.variants)).where(Product.id == product.id))
+    return result.scalar_one()
 
 
 @admin_router.put("/products/{product_id}", response_model=ProductOut)
@@ -89,7 +114,7 @@ async def update_product(
     _: object = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Product).where(Product.id == product_id))
+    result = await db.execute(select(Product).options(selectinload(Product.variants)).where(Product.id == product_id))
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
@@ -98,7 +123,6 @@ async def update_product(
         setattr(product, field, value)
 
     await db.commit()
-    await db.refresh(product)
     return product
 
 

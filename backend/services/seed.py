@@ -4,6 +4,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.product import Product, Variant
+from models.user import User
+from services.security import hash_password
 
 SAMPLE_PRODUCTS = [
     {
@@ -23,7 +25,28 @@ SAMPLE_PRODUCTS = [
 ]
 
 
+async def seed_admin_if_not_exists(db: AsyncSession) -> None:
+    """Create demo admin user if it doesn't exist"""
+    result = await db.execute(select(User).where(User.email == "admin@yash.com"))
+    if result.scalar_one_or_none():
+        return
+
+    admin_user = User(
+        name="Admin",
+        email="admin@yash.com",
+        phone="1234567890",
+        password_hash=hash_password("admin123"),
+        role="admin",
+        is_active=True,
+    )
+    db.add(admin_user)
+    await db.commit()
+
+
 async def seed_products_if_empty(db: AsyncSession) -> None:
+    # First, seed admin user
+    await seed_admin_if_not_exists(db)
+    
     result = await db.execute(select(Product.id).limit(1))
     if result.first():
         return
