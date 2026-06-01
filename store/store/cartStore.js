@@ -30,9 +30,9 @@ export const useCartStore = create(
           items.push({
             id: product.id,
             name: product.name,
-            image_url: product.image_url,
-            price: product.price,
-            mrp: product.mrp,
+            image_url: product.images?.[0] || "",
+            price: product.sale_price || product.base_price || 0,
+            mrp: product.base_price || 0,
             quantity: 1,
             size: selected.size,
             color: selected.color

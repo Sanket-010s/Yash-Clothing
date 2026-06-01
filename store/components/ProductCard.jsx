@@ -12,8 +12,13 @@ export default function ProductCard({ product }) {
   const isSaved = useWishlistStore((state) => state.isSaved(product.id));
   const [imageReady, setImageReady] = useState(false);
 
-  const discount = product.mrp > 0 ? Math.max(0, Math.round(((product.mrp - product.price) / product.mrp) * 100)) : 0;
-  const soldOut = product.stock <= 0;
+  const mrp = product.base_price || 0;
+  const price = product.sale_price || product.base_price || 0;
+  const discount = mrp > 0 && price < mrp ? Math.max(0, Math.round(((mrp - price) / mrp) * 100)) : 0;
+  
+  const totalStock = product.variants?.reduce((sum, v) => sum + (v.stock || 0), 0) || 0;
+  const soldOut = totalStock <= 0;
+  const imageUrl = product.images?.[0] || "";
 
   const toggleWishlist = (event) => {
     event.preventDefault();
@@ -47,7 +52,7 @@ export default function ProductCard({ product }) {
         ) : null}
 
         <Image
-          src={product.image_url}
+          src={imageUrl || "https://placehold.co/400x600"}
           alt={product.name}
           fill
           className={`object-cover transition duration-300 ${imageReady ? "opacity-100" : "opacity-0"}`}
@@ -61,8 +66,8 @@ export default function ProductCard({ product }) {
         <h3 className="line-clamp-2-custom text-product-name leading-snug text-text-primary">{product.name}</h3>
         <p className="text-caption text-text-secondary">{product.category}</p>
         <div className="flex items-center gap-2">
-          <span className="text-price leading-none">Rs. {product.price}</span>
-          <span className="text-caption text-muted line-through">Rs. {product.mrp}</span>
+          <span className="text-price leading-none">Rs. {price}</span>
+          {discount > 0 && <span className="text-caption text-muted line-through">Rs. {mrp}</span>}
         </div>
       </div>
     </Link>
