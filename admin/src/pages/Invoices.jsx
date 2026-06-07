@@ -14,7 +14,7 @@ export default function Invoices() {
     try {
       setIsLoading(true);
       const response = await api.get('/api/admin/invoices');
-      setInvoices(response.data.items || response.data);
+      setInvoices(response.data);
     } catch (error) {
       toast.error('Failed to load invoices');
       console.error(error);
@@ -111,13 +111,13 @@ export default function Invoices() {
                     {invoice.customer_name || 'N/A'}
                   </td>
                   <td className="px-4 py-3 text-sm text-neutral-text">
-                    {invoice.order_id?.slice(0, 8) || 'N/A'}
+                    {invoice.order_id ? String(invoice.order_id).slice(0, 8) : 'N/A'}
                   </td>
                   <td className="px-4 py-3 font-semibold text-neutral-primary">
-                    {formatCurrency(invoice.amount)}
+                    {formatCurrency(invoice.amount || 0)}
                   </td>
                   <td className="px-4 py-3 text-sm text-neutral-text">
-                    {formatDate(invoice.created_at || invoice.date)}
+                    {formatDate(invoice.generated_at)}
                   </td>
                   <td className="px-4 py-3">
                     <button

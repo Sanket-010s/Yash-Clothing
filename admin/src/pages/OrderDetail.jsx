@@ -22,7 +22,20 @@ export default function OrderDetail() {
   const fetchOrder = async () => {
     try {
       const response = await api.get(`/api/admin/orders/${id}`);
-      setOrder(response.data);
+      const orderData = response.data;
+      
+      // Build customer object from user or guest data
+      orderData.customer = orderData.user ? {
+        name: orderData.user.name,
+        email: orderData.user.email,
+        phone: orderData.user.phone
+      } : {
+        name: orderData.address?.full_name || 'Guest',
+        email: orderData.guest_email || 'N/A',
+        phone: orderData.guest_phone || orderData.address?.phone || 'N/A'
+      };
+      
+      setOrder(orderData);
     } catch (error) {
       toast.error('Failed to load order');
       navigate('/orders');
@@ -183,10 +196,6 @@ export default function OrderDetail() {
             <div className="flex justify-between text-neutral-primary">
               <span>Subtotal</span>
               <span>{formatCurrency(order.subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-neutral-primary">
-              <span>GST (18%)</span>
-              <span>{formatCurrency(order.gst_amount)}</span>
             </div>
             {order.discount_amount > 0 && (
               <div className="flex justify-between text-green-600">

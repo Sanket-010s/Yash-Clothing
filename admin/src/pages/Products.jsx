@@ -63,7 +63,9 @@ export default function Products() {
       toast.success('Product deleted successfully');
       setDeleteModal({ open: false, id: null });
     } catch (error) {
-      toast.error('Failed to delete product');
+      const message = error.response?.data?.detail || 'Failed to delete product';
+      toast.error(message);
+      setDeleteModal({ open: false, id: null });
     }
   };
 

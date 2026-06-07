@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { BarChart3, TrendingUp, ShoppingCart, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -108,24 +109,24 @@ export default function Dashboard() {
       <div className="bg-white rounded-lg border border-neutral-border p-6">
         <h3 className="text-lg font-semibold text-neutral-primary mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <a
-            href="/products/add"
+          <Link
+            to="/products/add"
             className="p-4 bg-primary-gold hover:bg-primary-gold-hover text-neutral-primary font-medium rounded-lg transition-colors text-center"
           >
             Add Product
-          </a>
-          <a
-            href="/orders"
+          </Link>
+          <Link
+            to="/orders"
             className="p-4 border border-primary-gold text-primary-gold hover:bg-yellow-50 font-medium rounded-lg transition-colors text-center"
           >
             View Orders
-          </a>
-          <a
-            href="/coupons"
+          </Link>
+          <Link
+            to="/coupons"
             className="p-4 border border-primary-gold text-primary-gold hover:bg-yellow-50 font-medium rounded-lg transition-colors text-center"
           >
             Manage Coupons
-          </a>
+          </Link>
           <button
             onClick={fetchStats}
             className="p-4 border border-neutral-border text-neutral-primary hover:bg-neutral-bg font-medium rounded-lg transition-colors"
