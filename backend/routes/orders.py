@@ -23,7 +23,6 @@ from services.pricing import (
     compute_order_totals,
     effective_variant_price,
     is_coupon_usable,
-    line_gst_rate,
     money,
 )
 
@@ -86,7 +85,6 @@ async def create_order(
     address = await _resolve_order_address(payload, current_user, db)
 
     subtotal = Decimal("0.00")
-    gst_amount = Decimal("0.00")
     order_items: list[OrderItem] = []
 
     for item in items_input:
@@ -109,9 +107,7 @@ async def create_order(
 
         unit_price = effective_variant_price(product, variant)
         line_total = money(unit_price * item.quantity)
-        line_gst = money(line_total * line_gst_rate(line_total))
         subtotal += line_total
-        gst_amount += line_gst
         variant.stock -= item.quantity
 
         order_items.append(
@@ -128,7 +124,6 @@ async def create_order(
         )
 
     subtotal = money(subtotal)
-    gst_amount = money(gst_amount)
     discount_amount = Decimal("0.00")
     coupon_code: str | None = None
 
@@ -143,7 +138,7 @@ async def create_order(
         discount_amount = calculate_coupon_discount(coupon, subtotal)
         coupon_code = coupon.code
 
-    delivery_charge, total_amount = compute_order_totals(subtotal, gst_amount, discount_amount)
+    delivery_charge, total_amount = compute_order_totals(subtotal, discount_amount, address.state)
 
     order = Order(
         user_id=current_user.id if current_user else None,
@@ -152,7 +147,6 @@ async def create_order(
         address_id=address.id,
         status="pending",
         subtotal=subtotal,
-        gst_amount=gst_amount,
         discount_amount=money(discount_amount),
         delivery_charge=delivery_charge,
         total_amount=total_amount,

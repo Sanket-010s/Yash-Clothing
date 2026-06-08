@@ -8,7 +8,8 @@ from models.product import Product, Variant
 
 MONEY_QUANT = Decimal("0.01")
 FREE_DELIVERY_THRESHOLD = Decimal("999.00")
-DEFAULT_DELIVERY_CHARGE = Decimal("49.00")
+MAHARASHTRA_DELIVERY_CHARGE = Decimal("65.00")
+DEFAULT_DELIVERY_CHARGE = Decimal("75.00")
 
 
 def money(value: Decimal | int | float | str) -> Decimal:
@@ -48,14 +49,16 @@ def is_coupon_usable(coupon: Coupon, subtotal: Decimal) -> tuple[bool, str | Non
     return True, None
 
 
-def line_gst_rate(line_total: Decimal) -> Decimal:
-    return Decimal("0.05") if money(line_total) <= Decimal("1000.00") else Decimal("0.12")
-
-
-def compute_order_totals(subtotal: Decimal, gst_amount: Decimal, discount_amount: Decimal) -> tuple[Decimal, Decimal]:
+def compute_order_totals(subtotal: Decimal, discount_amount: Decimal, state: str | None = None) -> tuple[Decimal, Decimal]:
     subtotal = money(subtotal)
-    gst_amount = money(gst_amount)
     discount_amount = money(discount_amount)
-    delivery_charge = Decimal("0.00") if subtotal >= FREE_DELIVERY_THRESHOLD else DEFAULT_DELIVERY_CHARGE
-    total_amount = money(subtotal + gst_amount + delivery_charge - discount_amount)
+    
+    if subtotal >= FREE_DELIVERY_THRESHOLD:
+        delivery_charge = Decimal("0.00")
+    elif state and state.lower() == "maharashtra":
+        delivery_charge = MAHARASHTRA_DELIVERY_CHARGE
+    else:
+        delivery_charge = DEFAULT_DELIVERY_CHARGE
+    
+    total_amount = money(subtotal + delivery_charge - discount_amount)
     return money(delivery_charge), total_amount

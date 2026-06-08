@@ -36,7 +36,6 @@ class CartItemOut(BaseModel):
 class CartSummaryOut(BaseModel):
     items: list[CartItemOut]
     subtotal: Decimal
-    gst_amount: Decimal
     discount_amount: Decimal
     delivery_charge: Decimal
     total_amount: Decimal

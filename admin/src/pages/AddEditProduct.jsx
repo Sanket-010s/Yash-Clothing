@@ -26,6 +26,7 @@ export default function AddEditProduct() {
 
   const [images, setImages] = useState([]);
   const [variants, setVariants] = useState([]);
+  const [product, setProduct] = useState(null);
   const [isLoading, setIsLoading] = useState(isEdit);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -58,6 +59,7 @@ export default function AddEditProduct() {
       });
       setImages(product.images || []);
       setVariants(product.variants || []);
+      setProduct(product); // Store the full product data
     } catch (error) {
       toast.error('Failed to load product');
       navigate('/products');
@@ -84,6 +86,39 @@ export default function AddEditProduct() {
 
       if (isEdit) {
         await api.put(`/api/admin/products/${id}`, payload);
+        
+        // Update variants for existing products
+        const existingVariants = product?.variants || [];
+        
+        // Handle variant updates/additions
+        for (const variant of variants) {
+          if (variant.size && variant.color && variant.stock >= 0) {
+            const existingVariant = existingVariants.find(v => 
+              v.id === variant.id || (v.size === variant.size && v.color === variant.color)
+            );
+            
+            if (existingVariant && variant.id) {
+              // Update existing variant
+              await api.put(`/api/admin/variants/${variant.id}`, {
+                size: variant.size,
+                color: variant.color,
+                color_hex: variant.color_hex,
+                stock: variant.stock,
+                price_override: variant.price_override,
+              });
+            } else if (!existingVariant) {
+              // Add new variant
+              await api.post(`/api/admin/products/${id}/variants`, {
+                size: variant.size,
+                color: variant.color,
+                color_hex: variant.color_hex,
+                stock: variant.stock,
+                price_override: variant.price_override,
+              });
+            }
+          }
+        }
+        
         toast.success('Product updated successfully');
       } else {
         const response = await api.post('/api/admin/products', payload);
@@ -104,7 +139,7 @@ export default function AddEditProduct() {
         
         toast.success('Product created successfully');
       }
-      navigate('/products');
+      navigate('/products', { state: { from: 'edit' } });
     } catch (error) {
       let errorMessage = 'Failed to save product';
       if (error.response?.data?.detail) {
@@ -123,9 +158,20 @@ export default function AddEditProduct() {
 
   return (
     <div className="p-4 lg:p-6 pb-20 lg:pb-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold text-neutral-primary mb-6">
-        {isEdit ? 'Edit Product' : 'Add New Product'}
-      </h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-neutral-primary">
+          {isEdit ? 'Edit Product' : 'Add New Product'}
+        </h1>
+        {isEdit && (
+          <button
+            type="button"
+            onClick={fetchProduct}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+          >
+            Refresh Data
+          </button>
+        )}
+      </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-lg border border-neutral-border p-6 space-y-6">
         {/* Product Name */}

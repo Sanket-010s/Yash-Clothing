@@ -22,16 +22,15 @@ from schemas.cart import (
     CartItemUpdateRequest,
     CartSummaryOut,
 )
-from services.pricing import calculate_coupon_discount, compute_order_totals, effective_variant_price, is_coupon_usable, line_gst_rate, money
+from services.pricing import calculate_coupon_discount, compute_order_totals, effective_variant_price, is_coupon_usable, money
 
 router = APIRouter(prefix="/api/cart", tags=["Cart"])
 
 
-def _calculate_item_totals(variant: Variant, product: Product, quantity: int) -> tuple[Decimal, Decimal]:
+def _calculate_item_totals(variant: Variant, product: Product, quantity: int) -> Decimal:
     unit_price = effective_variant_price(product, variant)
     line_total = money(unit_price * quantity)
-    gst_amount = money(line_total * line_gst_rate(line_total))
-    return line_total, gst_amount
+    return line_total
 
 
 async def _build_cart_summary(db: AsyncSession, user_id: UUID, coupon_code: str | None = None) -> CartSummaryOut:
@@ -46,7 +45,6 @@ async def _build_cart_summary(db: AsyncSession, user_id: UUID, coupon_code: str 
     cart_items = result.scalars().all()
 
     subtotal = Decimal("0.00")
-    gst_amount = Decimal("0.00")
     response_items: list[CartItemOut] = []
 
     for item in cart_items:
@@ -55,9 +53,8 @@ async def _build_cart_summary(db: AsyncSession, user_id: UUID, coupon_code: str 
         if not variant or not product:
             continue
         unit_price = effective_variant_price(product, variant)
-        line_total, line_gst = _calculate_item_totals(variant, product, item.quantity)
+        line_total = _calculate_item_totals(variant, product, item.quantity)
         subtotal += line_total
-        gst_amount += line_gst
         response_items.append(
             CartItemOut(
                 id=item.id,
@@ -74,7 +71,6 @@ async def _build_cart_summary(db: AsyncSession, user_id: UUID, coupon_code: str 
         )
 
     subtotal = money(subtotal)
-    gst_amount = money(gst_amount)
     discount = Decimal("0.00")
     applied_coupon = None
 
@@ -87,11 +83,10 @@ async def _build_cart_summary(db: AsyncSession, user_id: UUID, coupon_code: str 
                 discount = calculate_coupon_discount(coupon, subtotal)
                 applied_coupon = coupon.code
 
-    delivery_charge, total_amount = compute_order_totals(subtotal, gst_amount, discount)
+    delivery_charge, total_amount = compute_order_totals(subtotal, discount)
     return CartSummaryOut(
         items=response_items,
         subtotal=subtotal,
-        gst_amount=gst_amount,
         discount_amount=money(discount),
         delivery_charge=delivery_charge,
         total_amount=total_amount,

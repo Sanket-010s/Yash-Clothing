@@ -45,6 +45,9 @@ def send_order_confirmation_email(
             )
             message.attachment = attachment
 
-    client = SendGridAPIClient(settings.SENDGRID_API_KEY)
-    client.send(message)
-    return True
+    try:
+        client = SendGridAPIClient(settings.SENDGRID_API_KEY)
+        client.send(message)
+        return True
+    except Exception:
+        return False

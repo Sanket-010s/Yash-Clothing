@@ -4,13 +4,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useToast } from "@/components/ToastProvider";
+import LoginPrompt from "@/components/LoginPrompt";
+import { useAuthStore } from "@/store/authStore";
 import { useWishlistStore } from "@/store/wishlistStore";
 
 export default function ProductCard({ product }) {
   const { showToast } = useToast();
   const toggleItem = useWishlistStore((state) => state.toggleItem);
   const isSaved = useWishlistStore((state) => state.isSaved(product.id));
+  const token = useAuthStore((state) => state.token);
   const [imageReady, setImageReady] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
 
   const mrp = product.base_price || 0;
   const price = product.sale_price || product.base_price || 0;
@@ -23,11 +27,14 @@ export default function ProductCard({ product }) {
   const toggleWishlist = (event) => {
     event.preventDefault();
     event.stopPropagation();
+    if (!token) { setShowLogin(true); return; }
     const saved = toggleItem(product);
     showToast(saved ? "Added to wishlist" : "Removed from wishlist", "success");
   };
 
   return (
+    <>
+    {showLogin && <LoginPrompt message="Login to save items to your wishlist." onClose={() => setShowLogin(false)} />}
     <Link href={`/product/${product.id}`} className="card block overflow-hidden p-0 transition hover:-translate-y-0.5">
       <div className="relative aspect-[3/4] w-full overflow-hidden bg-surface">
         {discount > 0 ? (
@@ -71,6 +78,7 @@ export default function ProductCard({ product }) {
         </div>
       </div>
     </Link>
+    </>
   );
 }
 

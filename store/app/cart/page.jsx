@@ -46,10 +46,6 @@ export default function CartPage() {
           <span>Rs. {summary.subtotal.toFixed(2)}</span>
         </div>
         <div className="flex justify-between">
-          <span>GST (12%)</span>
-          <span>Rs. {summary.gst.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between">
           <span>Delivery</span>
           <span>Rs. {summary.delivery.toFixed(2)}</span>
         </div>

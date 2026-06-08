@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -14,6 +14,7 @@ export default function Products() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all'); // all, active, inactive
   const [deleteModal, setDeleteModal] = useState({ open: false, id: null });
+  const location = useLocation();
 
   const fetchProducts = async () => {
     try {
@@ -31,6 +32,13 @@ export default function Products() {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  // Refresh products when returning from edit page
+  useEffect(() => {
+    if (location.state?.from === 'edit') {
+      fetchProducts();
+    }
+  }, [location.state]);
 
   useEffect(() => {
     let filtered = products;
@@ -76,6 +84,8 @@ export default function Products() {
       });
       setProducts(products.map(p => p.id === product.id ? response.data : p));
       toast.success(`Product ${!product.is_active ? 'activated' : 'deactivated'}`);
+      // Refresh the products list
+      await fetchProducts();
     } catch (error) {
       toast.error('Failed to update product status');
     }

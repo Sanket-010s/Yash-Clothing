@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
@@ -27,3 +28,13 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def init_db() -> None:
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+
+        result = await connection.execute(
+            text(
+                "SELECT COUNT(*) FROM information_schema.columns "
+                "WHERE table_name = 'orders' AND column_name = 'gst_amount'"
+            )
+        )
+        if result.scalar_one() > 0:
+            await connection.execute(text("UPDATE orders SET gst_amount = 0 WHERE gst_amount IS NULL"))
+            await connection.execute(text("ALTER TABLE orders ALTER COLUMN gst_amount SET DEFAULT 0"))

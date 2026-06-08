@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,7 +21,7 @@ class Order(Base):
     address_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("addresses.id"), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
     subtotal: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
-    gst_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    gst_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0, server_default=text("0"), nullable=False)
     discount_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0, nullable=False)
     delivery_charge: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0, nullable=False)
     total_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)

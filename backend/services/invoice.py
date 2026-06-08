@@ -16,6 +16,7 @@ from config import get_settings
 from models.address import Address
 from models.invoice import Invoice
 from models.order import Order, OrderItem
+from services.cloudinary import upload_pdf
 
 settings = get_settings()
 
@@ -44,7 +45,8 @@ def generate_invoice_pdf(
     address: Address,
     invoice_number: str,
     output_dir: str = "tmp_invoices",
-) -> str:
+) -> tuple[str, str]:
+    """Generate invoice PDF and return (local_path, cloud_url)"""
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     file_path = Path(output_dir) / f"{invoice_number}.pdf"
 
@@ -56,8 +58,6 @@ def generate_invoice_pdf(
     pdf.drawString(20 * mm, y, settings.BRAND_NAME)
     pdf.setFont("Helvetica", 10)
     y -= 6 * mm
-    pdf.drawString(20 * mm, y, f"GSTIN: {settings.BRAND_GST_NUMBER}")
-    y -= 5 * mm
     pdf.drawString(20 * mm, y, settings.BRAND_ADDRESS)
 
     y -= 10 * mm
@@ -107,15 +107,6 @@ def generate_invoice_pdf(
     pdf.drawRightString(160 * mm, y, "Subtotal")
     pdf.drawRightString(190 * mm, y, _money(order.subtotal))
     y -= 6 * mm
-
-    cgst = order.gst_amount / 2
-    sgst = order.gst_amount / 2
-    pdf.drawRightString(160 * mm, y, "CGST")
-    pdf.drawRightString(190 * mm, y, _money(cgst))
-    y -= 6 * mm
-    pdf.drawRightString(160 * mm, y, "SGST")
-    pdf.drawRightString(190 * mm, y, _money(sgst))
-    y -= 6 * mm
     pdf.drawRightString(160 * mm, y, "Discount")
     pdf.drawRightString(190 * mm, y, _money(order.discount_amount))
     y -= 6 * mm
@@ -130,4 +121,8 @@ def generate_invoice_pdf(
     pdf.setFont("Helvetica-Oblique", 10)
     pdf.drawString(20 * mm, y, "Thank you for shopping with us.")
     pdf.save()
-    return str(file_path)
+    
+    # Upload to Cloudinary
+    cloud_url = upload_pdf(str(file_path), f"invoices/{invoice_number}")
+    
+    return str(file_path), cloud_url

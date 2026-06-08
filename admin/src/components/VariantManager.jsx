@@ -1,12 +1,20 @@
 import { Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function VariantManager({ variants = [], onChange }) {
-  const [variants_, setVariants] = useState(variants);
+  const [variants_, setVariants] = useState([]);
+
+  // Update local state when variants prop changes
+  useEffect(() => {
+    setVariants(variants.map(v => ({
+      ...v,
+      id: v.id || Date.now() + Math.random() // Ensure each variant has an ID
+    })));
+  }, [variants]);
 
   const handleAddVariant = () => {
     const newVariant = {
-      id: Date.now(),
+      id: Date.now() + Math.random(),
       size: '',
       color: '',
       color_hex: '#000000',

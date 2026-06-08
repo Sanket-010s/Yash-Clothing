@@ -123,7 +123,11 @@ async def update_product(
         setattr(product, field, value)
 
     await db.commit()
-    return product
+    await db.refresh(product)
+    
+    # Fetch the updated product with all relationships
+    result = await db.execute(select(Product).options(selectinload(Product.variants)).where(Product.id == product_id))
+    return result.scalar_one()
 
 
 @admin_router.delete("/products/{product_id}")
@@ -132,10 +136,20 @@ async def delete_product(
     _: object = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
+    from models.order import OrderItem
+    
     result = await db.execute(select(Product).where(Product.id == product_id))
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+    # Check if product has any order items
+    order_items_result = await db.execute(select(OrderItem).where(OrderItem.product_id == product_id).limit(1))
+    if order_items_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete product that has been ordered. Consider deactivating it instead."
+        )
 
     await db.delete(product)
     await db.commit()

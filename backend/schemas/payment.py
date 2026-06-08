@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CreatePaymentRequest(BaseModel):
@@ -24,3 +25,17 @@ class PaymentCreateResponse(BaseModel):
     amount: int
     amount_in_inr: Decimal
     currency: str = "INR"
+
+
+class PaymentOut(BaseModel):
+    id: UUID
+    order_id: UUID
+    razorpay_order_id: str
+    razorpay_payment_id: str | None
+    razorpay_signature: str | None
+    status: str
+    method: str | None
+    amount: Decimal
+    paid_at: datetime | None
+
+    model_config = ConfigDict(from_attributes=True)

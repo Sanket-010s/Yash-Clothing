@@ -11,21 +11,29 @@ export default function ShopPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setLoading(true);
-      api
-        .getProducts({ search, sort })
-        .then((data) => {
-          setProducts(data);
-          setError("");
-        })
-        .catch((err) => setError(err.message))
-        .finally(() => setLoading(false));
-    }, 300);
+  const fetchProducts = () => {
+    setLoading(true);
+    api
+      .getProducts({ search, sort })
+      .then((data) => {
+        setProducts(data);
+        setError("");
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  };
 
+  useEffect(() => {
+    const handler = setTimeout(fetchProducts, 300);
     return () => clearTimeout(handler);
   }, [search, sort]);
+
+  // Refresh products when window regains focus
+  useEffect(() => {
+    const handleFocus = () => fetchProducts();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
 
   return (
     <div className="space-y-4 p-4">

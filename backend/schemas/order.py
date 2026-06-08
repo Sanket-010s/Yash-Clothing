@@ -6,6 +6,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from schemas.address import AddressOut
+from schemas.auth import UserOut
+from schemas.invoice import InvoiceOut
+from schemas.payment import PaymentOut
+
 
 class AddressInput(BaseModel):
     label: str = Field(default="Home", max_length=20)
@@ -55,13 +60,34 @@ class OrderOut(BaseModel):
     address_id: UUID | None
     status: str
     subtotal: Decimal
-    gst_amount: Decimal
     discount_amount: Decimal
     delivery_charge: Decimal
     total_amount: Decimal
     coupon_code: str | None
     created_at: datetime
     items: list[OrderItemOut]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrderDetailOut(BaseModel):
+    id: UUID
+    user_id: UUID | None
+    guest_email: str | None
+    guest_phone: str | None
+    address_id: UUID | None
+    status: str
+    subtotal: Decimal
+    discount_amount: Decimal
+    delivery_charge: Decimal
+    total_amount: Decimal
+    coupon_code: str | None
+    created_at: datetime
+    items: list[OrderItemOut]
+    address: AddressOut | None = None
+    user: UserOut | None = None
+    payment: PaymentOut | None = None
+    invoice: InvoiceOut | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

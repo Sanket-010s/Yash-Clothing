@@ -40,5 +40,14 @@ export const api = {
   getOrders: () => request("/api/orders"),
   createPaymentOrder: (payload) => request("/api/payment/create", { method: "POST", body: JSON.stringify(payload) }),
   verifyPayment: (payload) => request("/api/payment/verify", { method: "POST", body: JSON.stringify(payload) }),
-  getInvoice: (orderId) => request(`/api/invoices/${orderId}`)
+  getInvoice: (orderId) => request(`/api/invoices/${orderId}`),
+
+  getWishlist: () => request("/api/wishlist"),
+  addToWishlist: (productId) => request(`/api/wishlist/${productId}`, { method: "POST" }),
+  removeFromWishlist: (productId) => request(`/api/wishlist/${productId}`, { method: "DELETE" }),
+
+  getAddresses: () => request("/api/addresses"),
+  createAddress: (payload) => request("/api/addresses", { method: "POST", body: JSON.stringify(payload) }),
+  deleteAddress: (id) => request(`/api/addresses/${id}`, { method: "DELETE" }),
+  setDefaultAddress: (id) => request(`/api/addresses/${id}/default`, { method: "PUT" })
 };

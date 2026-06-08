@@ -13,7 +13,7 @@ from database.db import get_db
 from middleware.admin import get_current_admin
 from models.order import Order
 from models.product import Variant
-from schemas.order import OrderOut, OrderStatusUpdateRequest
+from schemas.order import OrderDetailOut, OrderOut, OrderStatusUpdateRequest
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
@@ -42,13 +42,23 @@ async def list_orders(
     return result.scalars().all()
 
 
-@router.get("/orders/{order_id}", response_model=OrderOut)
+@router.get("/orders/{order_id}", response_model=OrderDetailOut)
 async def get_order(
     order_id: UUID,
     _: object = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Order).options(selectinload(Order.items)).where(Order.id == order_id))
+    result = await db.execute(
+        select(Order)
+        .options(
+            selectinload(Order.items),
+            selectinload(Order.address),
+            selectinload(Order.user),
+            selectinload(Order.payment),
+            selectinload(Order.invoice)
+        )
+        .where(Order.id == order_id)
+    )
     order = result.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")

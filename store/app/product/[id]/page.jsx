@@ -5,20 +5,24 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 import { useToast } from "@/components/ToastProvider";
+import LoginPrompt from "@/components/LoginPrompt";
 import StickyBar from "@/components/StickyBar";
 import { api } from "@/services/api";
 import { useCartStore } from "@/store/cartStore";
+import { useAuthStore } from "@/store/authStore";
 import { useWishlistStore } from "@/store/wishlistStore";
 
 export default function ProductDetailPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
   const { showToast } = useToast();
+  const token = useAuthStore((state) => state.token);
   const addItem = useCartStore((state) => state.addItem);
   const toggleItem = useWishlistStore((state) => state.toggleItem);
   const isSaved = useWishlistStore((state) => state.isSaved(id));
 
   const [product, setProduct] = useState(null);
+  const [showLogin, setShowLogin] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedSize, setSelectedSize] = useState(null);
   const [pincode, setPincode] = useState("");
@@ -28,21 +32,41 @@ export default function ProductDetailPage({ params }) {
   const [imageZoom, setImageZoom] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    api
-      .getProduct(id)
-      .then((productData) => {
-        setProduct(productData);
+    const fetchProduct = () => {
+      api
+        .getProduct(id)
+        .then((productData) => {
+          setProduct(productData);
 
-        if (productData.variants && productData.variants.length > 0) {
-          const uniqueSizes = [...new Set(productData.variants.map((v) => v.size))];
-          setSizes(uniqueSizes);
-          setSelectedSize(uniqueSizes[0]);
-        }
-      })
-      .catch((err) => setError(err.message));
+          if (productData.variants && productData.variants.length > 0) {
+            // Get available sizes (with stock > 0)
+            const availableSizes = productData.variants
+              .filter(v => v.stock > 0)
+              .map(v => v.size);
+            const uniqueAvailableSizes = [...new Set(availableSizes)];
+            
+            // Set first available size as default, or first size if none available
+            if (uniqueAvailableSizes.length > 0) {
+              setSelectedSize(uniqueAvailableSizes[0]);
+            } else {
+              const allSizes = [...new Set(productData.variants.map(v => v.size))];
+              setSelectedSize(allSizes[0] || null);
+            }
+          }
+        })
+        .catch((err) => setError(err.message));
+    };
+    
+    fetchProduct();
+    
+    // Refresh product when window regains focus
+    const handleFocus = () => fetchProduct();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, [id]);
 
   const handleWishlist = () => {
+    if (!token) { setShowLogin(true); return; }
     const saved = toggleItem(product);
     showToast(saved ? "Added to wishlist" : "Removed from wishlist", "success");
   };
@@ -68,15 +92,29 @@ export default function ProductDetailPage({ params }) {
   };
 
   const addToCart = () => {
+    if (!token) { setShowLogin(true); return; }
     if (!product || !selectedSize) {
       showToast("Please select a size", "error");
       return;
     }
-    addItem(product, { size: selectedSize });
+
+    const selectedVariant = product.variants?.find((variant) => variant.size === selectedSize);
+    
+    if (!selectedVariant || selectedVariant.stock <= 0) {
+      showToast("Selected size is out of stock", "error");
+      return;
+    }
+
+    addItem(product, {
+      size: selectedSize,
+      color: selectedVariant?.color || "Black",
+      variant_id: selectedVariant?.id
+    });
     showToast("Added to cart", "success");
   };
 
   const buyNow = () => {
+    if (!token) { setShowLogin(true); return; }
     addToCart();
     router.push("/checkout");
   };
@@ -96,6 +134,7 @@ export default function ProductDetailPage({ params }) {
 
   return (
     <div className="bg-white min-h-screen">
+      {showLogin && <LoginPrompt message="Login to add items to your cart or wishlist." onClose={() => setShowLogin(false)} />}
       {/* Main Product Section */}
       <div className="max-w-7xl mx-auto px-4 py-6 lg:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12">
@@ -205,19 +244,38 @@ export default function ProductDetailPage({ params }) {
                 </button>
               </div>
               <div className="grid grid-cols-4 lg:grid-cols-6 gap-2">
-                {["XS", "S", "M", "L", "XL", "XXL"].map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => setSelectedSize(size)}
-                    className={`py-3 px-2 rounded-lg font-semibold transition text-sm ${
-                      selectedSize === size
-                        ? "bg-gray-900 text-white border-2 border-gray-900"
-                        : "bg-gray-100 text-gray-900 border-2 border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    {size}
-                  </button>
-                ))}
+                {["XS", "S", "M", "L", "XL", "XXL"].map((size) => {
+                  const variant = product.variants?.find(v => v.size === size);
+                  const isAvailable = variant && variant.stock > 0;
+                  const isSelected = selectedSize === size;
+                  
+                  return (
+                    <button
+                      key={size}
+                      onClick={() => isAvailable && setSelectedSize(size)}
+                      disabled={!isAvailable}
+                      className={`relative py-3 px-2 rounded-lg font-semibold transition text-sm ${
+                        isSelected && isAvailable
+                          ? "bg-gray-900 text-white border-2 border-gray-900"
+                          : isAvailable
+                          ? "bg-gray-100 text-gray-900 border-2 border-gray-200 hover:border-gray-300"
+                          : "bg-gray-50 text-gray-400 border-2 border-gray-100 cursor-not-allowed"
+                      }`}
+                    >
+                      {size}
+                      {!isAvailable && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-full h-0.5 bg-red-500 rotate-45 transform"></div>
+                        </div>
+                      )}
+                      {variant && (
+                        <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                          {variant.stock}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
               {selectedSize && (
                 <p className="text-xs text-gray-600">

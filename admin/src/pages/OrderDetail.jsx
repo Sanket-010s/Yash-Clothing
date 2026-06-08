@@ -28,7 +28,7 @@ export default function OrderDetail() {
       orderData.customer = orderData.user ? {
         name: orderData.user.name,
         email: orderData.user.email,
-        phone: orderData.user.phone
+        phone: orderData.user.phone || orderData.address?.phone || 'N/A'
       } : {
         name: orderData.address?.full_name || 'Guest',
         email: orderData.guest_email || 'N/A',
@@ -50,6 +50,8 @@ export default function OrderDetail() {
       await api.put(`/api/admin/orders/${id}/status`, { status: newStatus });
       setOrder({ ...order, status: newStatus });
       toast.success('Order status updated');
+      // Refresh order data to get latest payment/invoice info
+      await fetchOrder();
     } catch (error) {
       toast.error('Failed to update status');
     } finally {
@@ -62,6 +64,20 @@ export default function OrderDetail() {
       window.open(order.invoice.pdf_url, '_blank');
     } else {
       toast.error('Invoice not available');
+    }
+  };
+
+  const handleGenerateInvoice = async () => {
+    try {
+      setIsUpdating(true);
+      const response = await api.post(`/api/admin/invoices/${id}/regenerate`);
+      toast.success('Invoice generated successfully');
+      // Refresh order data to get updated invoice
+      await fetchOrder();
+    } catch (error) {
+      toast.error('Failed to generate invoice');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -122,13 +138,22 @@ export default function OrderDetail() {
               </select>
             </div>
 
-            {order.invoice?.pdf_url && (
+            {order.invoice?.pdf_url ? (
               <button
                 onClick={handleDownloadInvoice}
                 className="flex items-center gap-2 px-4 py-2 bg-primary-gold hover:bg-primary-gold-hover text-neutral-primary font-medium rounded-lg transition-colors"
               >
                 <Download size={18} />
                 Download Invoice
+              </button>
+            ) : (
+              <button
+                onClick={handleGenerateInvoice}
+                disabled={isUpdating}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium rounded-lg transition-colors"
+              >
+                <Download size={18} />
+                Generate Invoice
               </button>
             )}
           </div>

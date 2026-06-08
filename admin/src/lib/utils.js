@@ -13,13 +13,29 @@ export function formatCurrency(amount) {
 }
 
 export function formatDate(date) {
+  const dateObj = new Date(date);
+  // Check if date ends with 'Z' (UTC) and handle timezone conversion
+  if (typeof date === 'string' && !date.includes('Z') && !date.includes('+')) {
+    // If no timezone info, treat as UTC
+    const utcDate = date + (date.includes('T') ? 'Z' : 'T00:00:00Z');
+    return new Intl.DateTimeFormat('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Kolkata'
+    }).format(new Date(utcDate));
+  }
+  
   return new Intl.DateTimeFormat('en-IN', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(date));
+    timeZone: 'Asia/Kolkata'
+  }).format(dateObj);
 }
 
 export function getStatusColor(status) {
