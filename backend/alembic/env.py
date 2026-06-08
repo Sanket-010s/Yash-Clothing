@@ -5,6 +5,8 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from models import user, product, order, invoice, coupon, cart, design, address, wishlist
+
 from database.db import Base
 from models import *  # noqa: F401,F403
 
