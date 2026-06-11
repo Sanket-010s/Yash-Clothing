@@ -61,15 +61,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="card flex items-center justify-between gap-4">
-        <div>
-          <h3 className="text-product-name text-primary">Design Your Own T-shirt</h3>
-          <p className="mt-1 text-caption text-text-secondary">Upload art, add text, and preview before you checkout.</p>
-        </div>
-        <Link href="/customize" className="btn-primary shrink-0">
-          Start
-        </Link>
-      </section>
+
     </div>
   );
 }

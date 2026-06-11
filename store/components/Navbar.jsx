@@ -9,7 +9,6 @@ import { useCartStore } from "@/store/cartStore";
 const desktopNav = [
   { href: "/", label: "Home" },
   { href: "/shop", label: "Shop" },
-  { href: "/customize", label: "Customize" },
   { href: "/wishlist", label: "Wishlist" }
 ];
 

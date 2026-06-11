@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 const navItems = [
   { href: "/", label: "Home", icon: HomeIcon },
   { href: "/shop", label: "Shop", icon: ShopIcon },
-  { href: "/customize", label: "Customize", icon: CustomizeIcon },
   { href: "/wishlist", label: "Wishlist", icon: HeartIcon },
   { href: "/profile", label: "Profile", icon: ProfileIcon }
 ];
@@ -16,7 +15,7 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 h-16 border-t border-border bg-surface shadow-nav lg:hidden">
-      <div className="mx-auto grid h-full max-w-container grid-cols-5">
+      <div className="mx-auto grid h-full max-w-container grid-cols-4">
         {navItems.map((item) => {
           const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
           const Icon = item.icon;
