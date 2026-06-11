@@ -23,15 +23,15 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Custom T-Shirt Platform API", version="1.0.0", lifespan=lifespan)
 
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=[settings.FRONTEND_URL, settings.ADMIN_URL],
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
-
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",    # local frontend
+        "http://localhost:5173",    # local admin
+        "http://localhost:5174",    # local admin alternate port
+        settings.FRONTEND_URL,      # production frontend
+        settings.ADMIN_URL,         # production admin
+    ],
     allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],

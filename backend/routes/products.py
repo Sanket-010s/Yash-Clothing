@@ -26,7 +26,7 @@ async def list_products(
     max_price: Decimal | None = Query(default=None, ge=0),
     sort: str = Query(default="newest"),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=12, ge=1, le=100),
+    limit: int = Query(default=100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
 ):
     query: Select[tuple[Product]] = select(Product).options(selectinload(Product.variants)).where(Product.is_active.is_(True))
