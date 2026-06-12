@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 from uuid import UUID
 
+from cachetools import TTLCache
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import Select, asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,13 +12,15 @@ from sqlalchemy.orm import selectinload
 from database.db import get_db
 from middleware.admin import get_current_admin
 from models.product import Product, Variant
-from schemas.product import ProductCreate, ProductOut, ProductUpdate, VariantCreate, VariantOut, VariantUpdate
+from schemas.product import ProductCreate, ProductListOut, ProductOut, ProductUpdate, VariantCreate, VariantOut, VariantUpdate
 
 router = APIRouter(prefix="/api/products", tags=["Products"])
 admin_router = APIRouter(prefix="/api/admin", tags=["Admin Products"])
 
+products_cache: TTLCache = TTLCache(maxsize=50, ttl=300)
 
-@router.get("", response_model=list[ProductOut])
+
+@router.get("", response_model=list[ProductListOut])
 async def list_products(
     category: str | None = None,
     size: str | None = None,
@@ -29,6 +32,9 @@ async def list_products(
     limit: int = Query(default=100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
 ):
+    cache_key = (category, size, color, min_price, max_price, sort, page, limit)
+    if cache_key in products_cache:
+        return products_cache[cache_key]
     query: Select[tuple[Product]] = select(Product).options(selectinload(Product.variants)).where(Product.is_active.is_(True))
 
     if category:
@@ -55,7 +61,9 @@ async def list_products(
 
     query = query.distinct().offset((page - 1) * limit).limit(limit)
     result = await db.execute(query)
-    return result.scalars().all()
+    products = [ProductListOut.from_product(p) for p in result.scalars().all()]
+    products_cache[cache_key] = products
+    return products
 
 
 @router.get("/{product_id}", response_model=ProductOut)
@@ -103,6 +111,7 @@ async def create_product(
     product = Product(**payload.model_dump())
     db.add(product)
     await db.commit()
+    products_cache.clear()
     result = await db.execute(select(Product).options(selectinload(Product.variants)).where(Product.id == product.id))
     return result.scalar_one()
 
@@ -124,7 +133,7 @@ async def update_product(
 
     await db.commit()
     await db.refresh(product)
-    
+    products_cache.clear()
     # Fetch the updated product with all relationships
     result = await db.execute(select(Product).options(selectinload(Product.variants)).where(Product.id == product_id))
     return result.scalar_one()
@@ -153,6 +162,7 @@ async def delete_product(
 
     await db.delete(product)
     await db.commit()
+    products_cache.clear()
     return {"message": "Product deleted"}
 
 

@@ -55,6 +55,32 @@ class ProductUpdate(BaseModel):
     is_active: bool | None = None
 
 
+class ProductListOut(BaseModel):
+    id: UUID
+    name: str
+    base_price: Decimal
+    sale_price: Decimal | None
+    category: str
+    images: list[str]
+    is_active: bool
+    variants: list[VariantOut] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @classmethod
+    def from_product(cls, p: object) -> "ProductListOut":
+        return cls(
+            id=p.id,
+            name=p.name,
+            base_price=p.base_price,
+            sale_price=p.sale_price,
+            category=p.category,
+            images=p.images[:1],
+            is_active=p.is_active,
+            variants=p.variants,
+        )
+
+
 class ProductOut(BaseModel):
     id: UUID
     name: str
