@@ -41,7 +41,39 @@ export default function VariantManager({ variants = [], onChange }) {
   };
 
   const sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-  const colors = ['Black', 'White', 'Red', 'Blue', 'Green', 'Yellow', 'Navy', 'Gray'];
+  const colors = [
+    { name: 'Black',  hex: '#000000' },
+    { name: 'White',  hex: '#ffffff' },
+    { name: 'Red',    hex: '#ef4444' },
+    { name: 'Blue',   hex: '#3b82f6' },
+    { name: 'Green',  hex: '#22c55e' },
+    { name: 'Yellow', hex: '#eab308' },
+    { name: 'Navy',   hex: '#1e3a5f' },
+    { name: 'Gray',   hex: '#6b7280' },
+  ];
+
+  const handleColorNameChange = (id, value) => {
+    const isHex = /^#([0-9a-f]{3}){1,2}$/i.test(value);
+    const match = colors.find(c => c.name.toLowerCase() === value.toLowerCase());
+    const updated = variants_.map(v =>
+      v.id === id ? {
+        ...v,
+        color: value,
+        color_hex: isHex ? value : match ? match.hex : v.color_hex,
+      } : v
+    );
+    setVariants(updated);
+    onChange(updated);
+  };
+
+  const handleColorHexChange = (id, hex) => {
+    const match = colors.find(c => c.hex.toLowerCase() === hex.toLowerCase());
+    const updated = variants_.map(v =>
+      v.id === id ? { ...v, color_hex: hex, ...(match ? { color: match.name } : {}) } : v
+    );
+    setVariants(updated);
+    onChange(updated);
+  };
 
   return (
     <div className="space-y-4">
@@ -55,7 +87,7 @@ export default function VariantManager({ variants = [], onChange }) {
 
       <div className="space-y-3">
         {variants_.map((variant) => (
-          <div key={variant.id} className="bg-neutral-bg p-4 rounded-lg grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+          <div key={variant.id} className="bg-neutral-bg p-4 rounded-lg grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
             <select
               value={variant.size}
               onChange={(e) => handleUpdateVariant(variant.id, 'size', e.target.value)}
@@ -65,22 +97,26 @@ export default function VariantManager({ variants = [], onChange }) {
               {sizes.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
 
-            <select
-              value={variant.color}
-              onChange={(e) => handleUpdateVariant(variant.id, 'color', e.target.value)}
-              className="px-3 py-2 border border-neutral-border rounded-lg text-sm"
-            >
-              <option value="">Color</option>
-              {colors.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-
-            <input
-              type="color"
-              value={variant.color_hex}
-              onChange={(e) => handleUpdateVariant(variant.id, 'color_hex', e.target.value)}
-              className="h-10 rounded-lg border border-neutral-border cursor-pointer"
-              title="Color Hex"
-            />
+            <div className="flex items-center gap-1 col-span-1 md:col-span-2">
+              <input
+                type="text"
+                list={`color-list-${variant.id}`}
+                value={variant.color}
+                onChange={(e) => handleColorNameChange(variant.id, e.target.value)}
+                placeholder="Color name"
+                className="flex-1 px-3 py-2 border border-neutral-border rounded-lg text-sm"
+              />
+              <datalist id={`color-list-${variant.id}`}>
+                {colors.map(c => <option key={c.name} value={c.name} />)}
+              </datalist>
+              <input
+                type="color"
+                value={variant.color_hex || '#000000'}
+                onChange={(e) => handleColorHexChange(variant.id, e.target.value)}
+                className="h-10 w-10 rounded-lg border border-neutral-border cursor-pointer p-0.5 shrink-0"
+                title="Pick color"
+              />
+            </div>
 
             <input
               type="number"
