@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-
+from fastapi.responses import Response
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -55,7 +55,10 @@ app.include_router(designs.router)
 app.include_router(coupons.router)
 
 
-@app.get("/health")
 @app.head("/health")
-async def health():
+async def health_head():
+    return Response(status_code=200)
+
+@app.get("/health")
+async def health_get():
     return {"status": "ok"}
